@@ -95,7 +95,7 @@ class VariantCalling(WorkflowRunner):
         self.recal_cm7 = '%s -T PrintReads -R %s -I %s.sort.gp.rmdup.realign.bam -BQSR %s.recal_data.table -o %s.sort.gp.rmdup.realign.recal.bam 2>>%s.log'\
                          % (self.config['gatk'],self.ref,self.prefix,self.prefix,self.prefix,self.prefix)
         
-        # variants calling
+        # variants calling by gatk
         self.vcf_cm1 = '%s -T HaplotypeCaller -R %s -I %s.sort.gp.rmdup.realign.recal.bam -o %s.raw_variants_recal.vcf 2>>%s.log'\
                        % (self.config['gatk'],self.ref,self.prefix,self.prefix,self.prefix)
         self.vcf_cm2 = '%s -T SelectVariants -R %s -V %s.raw_variants_recal.vcf -selectType SNP -o %s.raw_snps_recal.vcf 2>>%s.log'\
@@ -105,6 +105,15 @@ class VariantCalling(WorkflowRunner):
         self.vcf_cm4 = "%s -T VariantFiltration -R %s -V %s.raw_snps_recal.vcf --filterExpression 'QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0 || SOR > 4.0' --filterName \"basic_snp_filter\" -o %s.filtered_snps_final.vcf 2>>%s.log" \
                          % (self.config['gatk'],self.ref,self.prefix,self.prefix,self.prefix)
         self.vcf_cm5 = "%s -T VariantFiltration -R %s -V %s.raw_indels_recal.vcf --filterExpression 'QD < 2.0 || FS > 200.0 || ReadPosRankSum < -20.0 || SOR > 10.0' --filterName \"basic_indel_filter\" -o %s.filtered_indels_final.vcf 2>>%s.log" \
+                         % (self.config['gatk'],self.ref,self.prefix,self.prefix,self.prefix)
+        
+        # freebayes
+        self.free_cm1 = '%s -f %s %s.sort.gp.rmdup.realign.recal.bam > %s.freebayes.raw.vcf 2>>%s.log' %(self.config['freebayes'],self.ref,self.prefix,self.prefix,self.prefix) 
+        self.free_cm2 = "%s -T VariantFiltration -R %s -V %s.freebayes.raw.vcf --filterExpression 'QUAL < 1 || QUAL / AO > 10 || SAF > 0 || SAR > 0 || RPR > 1 || RPL > 1' --filterName \"freebayes_filter\" -o %s.filtered_freebayes.vcf 2>>%s.log"\
+                        % (self.config['gatk'],self.ref,self.prefix,self.prefix,self.prefix)
+        self.free_cm3 = '%s -T SelectVariants -R %s -V %s.filtered_freebayes.vcf -selectType SNP -o %s.filtered_freebayes_snps.vcf 2>>%s.log'\
+                         % (self.config['gatk'],self.ref,self.prefix,self.prefix,self.prefix)
+        self.free_cm4 = '%s -T SelectVariants -R %s -V %s.filtered_freebayes.vcf -selectType INDEL -o %s.filtered_freebayes_indels.vcf 2>>%s.log'\
                          % (self.config['gatk'],self.ref,self.prefix,self.prefix,self.prefix)
         
         # annotation
@@ -154,6 +163,13 @@ class VariantCalling(WorkflowRunner):
             vcf_task['vcf_take_indel'] = self.addTask('vcf_take_indel', self.vcf_cm3, dependencies=vcf_task['vcf_vcf'])
             vcf_task['vcf_filter_snp'] = self.addTask('vcf_filter_snp', self.vcf_cm4, dependencies=vcf_task['vcf_take_snp'])
             vcf_task['vcf_filter_indel'] = self.addTask('vcf_filter_indel', self.vcf_cm5, dependencies=vcf_task['vcf_take_indel'])            
+        
+        free_task = {'free_vcf':None,'free_filter':None,'free_take_snp':None,'free_take_indel':None}
+        if 'all' in self.stages or 'free' in self.stages:
+            free_task['free_vcf'] = self.addTask('free_vcf', self.free_cm1, dependencies=recal_task['print_reads'])
+            free_task['free_filter'] = self.addTask('free_filter', self.free_cm2, dependencies=free_task['free_vcf'])
+            free_task['free_take_snp'] = self.addTask('free_take_snp', self.free_cm3, dependencies=free_task['free_filter'])
+            free_task['free_take_indel'] = self.addTask('free_take_indel', self.free_cm4, dependencies=free_task['free_filter'])
             
 
 if __name__ == "__main__":

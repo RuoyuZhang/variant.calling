@@ -3,4 +3,5 @@ samtools=/home/fs01/rz253/bin/main/samtools
 trim=java -jar /home/fs01/rz253/bin/Trimmomatic/Trimmomatic-0.36/trimmomatic-0.36.jar
 gatk=java -Xmx4g -jar /home/fs01/rz253/bin/gatk/3.8/GenomeAnalysisTK.jar
 picard=java -Xmx4g -jar /home/fs01/rz253/bin/picard/picard-tools-2.3.0/picard.jar
+freebayes=/home/fs01/rz253/bin/freebayes/bin/freebayes
 snpEff=java -Xmx4g -jar /home/fs01/rz253/bin/snpEff/snpEff.jar
